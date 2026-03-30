@@ -1,0 +1,3 @@
+# This file hides the .env file because it contains the password for the database connection
+
+.env
