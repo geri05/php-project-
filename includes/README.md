@@ -103,5 +103,3 @@ The system architecture consists of five core tables designed for high performan
 | **end_time** | TIMESTAMP | Reservation end |
 
 ---
-
-Would you like me to generate a **`.gitignore`** file template to ensure your `.env` credentials stay private?
