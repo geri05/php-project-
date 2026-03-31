@@ -1,7 +1,3 @@
-This is a professional and "polished" version of your documentation. I’ve organized it into a clean structure that will look great on GitHub or in a project report.
-
----
-
 # 🅿️ Parking Management System - Technical Documentation
 
 This guide provides the necessary steps to configure the environment and understand the database architecture of the Parking Management System.
