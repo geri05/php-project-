@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'includes/db.php'; 
+require_once 'database/db.php'; 
 
 $stmt = $pdo->query("
     SELECT spot_number, status 
@@ -44,7 +44,7 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="assets/style.css">
 
   <script>
     const DYNAMIC_SPOTS = <?php echo $spots_json; ?>;
@@ -67,7 +67,7 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
       </div>
       
       <div class="text-center mb-6">
-        <h1 id="auth-title" class="text-2xl font-bold text-gray-900 tracking-tight">AutoSistemPark</h1>
+        <h1 id="auth-title" class="text-2xl font-bold text-gray-900 tracking-tight">AutoSystemPark</h1>
         <p id="auth-subtitle" class="text-gray-500 mt-2 text-sm">Sign in to manage the space</p>
         
         <?php if($error_msg): ?>
@@ -78,7 +78,7 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
         <?php endif; ?>
       </div>
 
-      <form id="login-form" method="POST" action="login.php" class="space-y-4">
+      <form id="login-form" method="POST" action="functions/login.php" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
           <input type="email" name="email" required class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none text-gray-900">
@@ -100,7 +100,7 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
         </div>
       </form>
 
-      <form id="register-form" method="POST" action="register.php" class="space-y-4 hidden">
+      <form id="register-form" method="POST" action="functions/register.php" class="space-y-4 hidden">
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
@@ -151,7 +151,7 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
         <button id="nav-register-btn" class="hidden h-[40px] px-5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm flex items-center justify-center">
           Register
         </button>
-        <a href="logout.php" id="logout-btn" class="hidden h-[40px] px-5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm flex items-center justify-center" title="Logout">
+        <a href="functions/logout.php" id="logout-btn" class="hidden h-[40px] px-5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm flex items-center justify-center" title="Logout">
           Logout
         </a>
       </div>
@@ -193,11 +193,8 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
       </div>
 
       <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-8">
-        
         <div class="grid grid-cols-[1fr_30px_1fr_30px_1fr] sm:grid-cols-[1fr_50px_1fr_50px_1fr] gap-x-2 sm:gap-x-4 max-w-5xl mx-auto">
-          
           <div id="zone-a" class="flex flex-col gap-3"></div>
-
           <div class="bg-gray-50/50 border-x border-gray-100 rounded-lg flex flex-col justify-between py-12 items-center">
              <div class="w-1 h-12 bg-gray-300 rounded-full"></div>
              <i data-lucide="arrow-down" class="text-gray-400 w-5 h-5"></i>
@@ -205,9 +202,7 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
              <i data-lucide="arrow-down" class="text-gray-400 w-5 h-5"></i>
              <div class="w-1 h-12 bg-gray-300 rounded-full"></div>
           </div>
-
           <div id="zone-b" class="flex flex-col gap-3"></div>
-
           <div class="bg-gray-50/50 border-x border-gray-100 rounded-lg flex flex-col justify-between py-12 items-center">
              <div class="w-1 h-12 bg-gray-300 rounded-full"></div>
              <i data-lucide="arrow-down" class="text-gray-400 w-5 h-5"></i>
@@ -215,11 +210,8 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
              <i data-lucide="arrow-down" class="text-gray-400 w-5 h-5"></i>
              <div class="w-1 h-12 bg-gray-300 rounded-full"></div>
           </div>
-
           <div id="zone-c" class="flex flex-col gap-3"></div>
-
         </div>
-
       </div>
     </main>
   </div>
@@ -260,6 +252,6 @@ unset($_SESSION['login_error'], $_SESSION['register_error']);
     <div id="modal-actions" class="flex gap-3 mt-auto"></div>
   </div>
 
-  <script src="app.js?v=5"></script>
+  <script src="assets/app.js?v=5"></script>
 </body>
 </html>
