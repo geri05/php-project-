@@ -1,5 +1,4 @@
 <?php
-
 function loadEnv($path) {
     if (!file_exists($path)) return;
 
@@ -20,12 +19,14 @@ $user = $_ENV['DB_USER'];
 $pass = $_ENV['DB_PASS'];
 
 try {
-    $dsn = "pgsql:host=$host;port=$port;dbname=$db";
+    $endpointId = explode('.', $host)[0]; 
+    $dsn = "pgsql:host=$host;port=$port;dbname=$db;sslmode=require;options=endpoint=$endpointId";
     $pdo = new PDO($dsn, $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
     ]);
 
-    echo "Lidhja u krye!";
+   // echo "Connection was successful!";
 } catch (PDOException $e) {
     die($e->getMessage());
 }
+?>
