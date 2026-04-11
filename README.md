@@ -27,16 +27,22 @@ For our command-line operations, we highly recommend using **Warp**.
 We have organized our codebase to strictly separate the logic from the presentation.
 
 ```text
-PROJECT/
-├── includes/           # Core logic and backend (PHP)
-│   ├── db.php          # PostgreSQL database connection
-│   └── functions.php   # Main functions (Login, Bookings, Analytics)
-├── assets/             # Static files (CSS, JS, and Images)
-├── index.php           # Landing page / Login
-├── dashboard.php       # User dashboard (Booking interface)
-├── admin.php           # Admin panel (Statistics and Financials)
-├── .env                # Database credentials (kept separate for security)
-└── README.md           # Project documentation
+PROJECT
+ │
+ ├── Backend/
+ │    ├── main/           # Core PHP backend logic and routing
+ │    ├── connection/     # Database connection scripts
+ │    ├── .properties     # Environment variables (DB passwords). *Keep local, DO NOT push!*
+ │    └── README.md       # Specific documentation for backend setup
+ │
+ ├── Frontend/
+ │    ├── images/         # Static assets and graphics
+ │    ├── HTML/           # Core structure of the web pages
+ │    ├── CSS/            # Stylesheets for design and layout
+ │    ├── JS/             # JavaScript for animations and client-side logic
+ │    └── README.md       # Specific documentation for frontend setup
+ │
+ └── README.md            # Main project documentation (This file)
 ```
 
 ---
