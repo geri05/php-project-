@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'includes/db.php';
+require_once '../database/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
@@ -13,15 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($user && $password === $user['password']) { 
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['role'] = $user['role'];
-        header("Location: index.php");
+        header("Location: ../index.php");
         exit;
     } else {
         $_SESSION['login_error'] = 'Invalid email or password!';
-        header("Location: index.php?error=true");
+        header("Location: ../index.php?error=true");
         exit;
     }
 } else {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit;
 }
 ?>

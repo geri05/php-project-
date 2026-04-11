@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'includes/db.php';
+require_once '../database/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = trim($_POST['first_name']);
@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($stmt->fetch()) {
         $_SESSION['register_error'] = 'This email already exists! Please try another one.';
-        header("Location: index.php?show_register=true");
+        header("Location: ../index.php?show_register=true");
         exit;
     }
 
@@ -27,15 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_id'] = $new_user['id'];
         $_SESSION['role'] = $new_user['role'];
         
-        header("Location: index.php");
+        header("Location: ../index.php");
         exit;
     } else {
         $_SESSION['register_error'] = 'An error occurred during registration. Please try again.';
-        header("Location: index.php?show_register=true");
+        header("Location: ../index.php?show_register=true");
         exit;
     }
 } else {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit;
 }
 ?>
