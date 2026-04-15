@@ -1,255 +1,196 @@
-let spots = DYNAMIC_SPOTS; 
-let currentFilter = 'all';
-let selectedSpot = null;
-let isLoggedIn = USER_IS_LOGGED_IN; 
+const IS_LOGGED_IN    = document.body.dataset.loggedIn === 'true';
+const HAS_LOGIN_ERR   = document.body.dataset.loginErr === 'true';
+const FORCE_REGISTER  = document.body.dataset.forceRegister === 'true';
+const ALL_SPOTS       = JSON.parse(document.body.dataset.spots || '[]');
+const TOTAL_SPOTS     = parseInt(document.body.dataset.totalSpots || '240');
 
-function getStatusConfig(status) {
-  switch (status) {
-    case 'available': return { label: 'Available', color: 'bg-emerald-500', text: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'check-circle-2', borderSide: 'emerald-500' };
-    case 'occupied': return { label: 'Occupied', color: 'bg-rose-500', text: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-200', icon: 'car', borderSide: 'rose-500' };
-    case 'reserved': return { label: 'Reserved', color: 'bg-orange-500', text: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', icon: 'lock', borderSide: 'orange-500' };
-    default: return { label: 'Unknown', color: 'bg-gray-500', text: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200', icon: 'car', borderSide: 'gray-500' };
-  }
-}
+// ── Page switch ───────────────────────────────────
+document.getElementById('page-landing').style.display   = IS_LOGGED_IN ? 'none'  : 'block';
+document.getElementById('page-dashboard').style.display = IS_LOGGED_IN ? 'block' : 'none';
+if (!IS_LOGGED_IN && FORCE_REGISTER) openAuth('register');
+else if (!IS_LOGGED_IN && HAS_LOGIN_ERR) openAuth('login');
 
-function renderDashboard() {
-  document.getElementById('stat-total').innerText = spots.length;
-  document.getElementById('stat-available').innerText = spots.filter(s => s.status === 'available').length;
-  document.getElementById('stat-reserved').innerText = spots.filter(s => s.status === 'reserved').length;
-  document.getElementById('stat-occupied').innerText = spots.filter(s => s.status === 'occupied').length;
-
-  const filteredSpots = spots.filter(spot => currentFilter === 'all' || spot.status === currentFilter);
-  
-  const spotsA = filteredSpots.filter(s => s.zone === 'A');
-  const spotsB = filteredSpots.filter(s => s.zone === 'B');
-  const spotsC = filteredSpots.filter(s => s.zone === 'C');
-
-  document.getElementById('zone-a').innerHTML = spotsA.map(spot => createSpotHTML(spot)).join('');
-  document.getElementById('zone-b').innerHTML = spotsB.map(spot => createSpotHTML(spot)).join('');
-  document.getElementById('zone-c').innerHTML = spotsC.map(spot => createSpotHTML(spot)).join('');
-
-  lucide.createIcons();
-}
-
-function createSpotHTML(spot) {
-  const config = getStatusConfig(spot.status);
-  const isRightSide = (spot.zone === 'C');
-
-  let containerClasses = `parking-spot relative h-[52px] sm:h-[60px] w-full cursor-pointer group flex items-center justify-between px-3 sm:px-4 box-border shrink-0 `;
-  
-  if (isRightSide) {
-      containerClasses += `rounded-r-xl border-y-2 border-r-4 border-l-0 `; 
-      if(spot.status === 'available') containerClasses += `border-gray-200 border-r-emerald-500 bg-white`;
-      if(spot.status === 'occupied') containerClasses += `border-gray-200 border-r-rose-500 bg-gray-50`;
-      if(spot.status === 'reserved') containerClasses += `border-gray-200 border-r-orange-500 bg-white`;
-  } else {
-      containerClasses += `rounded-l-xl border-y-2 border-l-4 border-r-0 `;
-      if(spot.status === 'available') containerClasses += `border-gray-200 border-l-emerald-500 bg-white`;
-      if(spot.status === 'occupied') containerClasses += `border-gray-200 border-l-rose-500 bg-gray-50`;
-      if(spot.status === 'reserved') containerClasses += `border-gray-200 border-l-orange-500 bg-white`;
-  }
-
-  let iconHTML = '';
-  if(spot.status === 'occupied') iconHTML = `<i data-lucide="car" class="w-5 h-5 sm:w-6 sm:h-6 ${config.text} ${isRightSide ? '-scale-x-100' : ''}"></i>`;
-  else if(spot.status === 'reserved') iconHTML = `<i data-lucide="lock" class="w-4 h-4 sm:w-5 sm:h-5 ${config.text}"></i>`;
-  else if(spot.status === 'available') iconHTML = `<div class="w-2 h-2 rounded-full bg-emerald-500 opacity-50"></div>`;
-
-  let innerContent = '';
-  if (isRightSide) {
-      innerContent = `
-        <div class="flex flex-col items-center gap-1">${iconHTML}</div>
-        <span class="font-bold text-gray-400 text-xs sm:text-sm">${spot.id}</span>
-      `;
-  } else {
-      innerContent = `
-        <span class="font-bold text-gray-400 text-xs sm:text-sm">${spot.id}</span>
-        <div class="flex flex-col items-center gap-1">${iconHTML}</div>
-      `;
-  }
-
-  return `
-    <div data-id="${spot.id}" class="${containerClasses}">
-      ${innerContent}
-    </div>
-  `;
-}
-
-function updateFilterUI() {
-  document.querySelectorAll('.filter-card').forEach(card => {
-    const filterType = card.getAttribute('data-filter');
-    card.className = "filter-card p-4 rounded-2xl cursor-pointer transition-all border border-gray-100 bg-white shadow-sm hover:border-gray-300";
-    
-    if (currentFilter === filterType) {
-      if(filterType === 'available') card.classList.add('ring-2', 'ring-emerald-500', 'border-transparent', 'bg-emerald-50');
-      if(filterType === 'reserved') card.classList.add('ring-2', 'ring-orange-500', 'border-transparent', 'bg-orange-50');
-      if(filterType === 'occupied') card.classList.add('ring-2', 'ring-rose-500', 'border-transparent', 'bg-rose-50');
-    }
+// ── Custom cursor (landing) ───────────────────────
+if (!IS_LOGGED_IN) {
+  const cur = document.getElementById('cursor');
+  const rng = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove',e=>{ mx=e.clientX;my=e.clientY; cur.style.left=(mx-6)+'px'; cur.style.top=(my-6)+'px'; });
+  (function loop(){ rx+=(mx-rx-18)*.12; ry+=(my-ry-18)*.12; rng.style.left=rx+'px'; rng.style.top=ry+'px'; requestAnimationFrame(loop); })();
+  document.querySelectorAll('button,a').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{ cur.style.transform='scale(2.5)'; rng.style.transform='scale(1.5)'; rng.style.opacity='.8'; });
+    el.addEventListener('mouseleave',()=>{ cur.style.transform=''; rng.style.transform=''; rng.style.opacity='.5'; });
   });
 }
 
-const backdrop = document.getElementById('modal-backdrop');
-const sheet = document.getElementById('modal-sheet');
-
-function openModal(spotId) {
-  selectedSpot = spots.find(s => s.id === spotId);
-  if(!selectedSpot) return;
-
-  const config = getStatusConfig(selectedSpot.status);
-
-  document.getElementById('modal-title').innerText = `Spot ${selectedSpot.id}`;
-  document.getElementById('modal-subtitle').innerText = `Standard Parking • Zone ${selectedSpot.zone}`;
-  document.getElementById('modal-status-text').innerText = config.label;
-  
-  const statusCard = document.getElementById('modal-status-card');
-  const iconWrap = document.getElementById('modal-status-icon-wrap');
-  
-  statusCard.className = `p-4 rounded-2xl flex items-center gap-4 ${config.bg}`;
-  iconWrap.className = `p-3 rounded-xl bg-white shadow-sm ${config.text}`;
-  iconWrap.innerHTML = `<i data-lucide="${config.icon}" class="w-6 h-6"></i>`;
-  document.getElementById('modal-status-text').className = `text-lg font-bold capitalize ${config.text}`;
-
-  const detailsBox = document.getElementById('modal-occupant-details');
-  if (selectedSpot.status === 'occupied') {
-    detailsBox.classList.remove('hidden');
-    document.getElementById('modal-license').innerText = selectedSpot.occupant || 'Unknown';
-    document.getElementById('modal-duration').innerText = selectedSpot.timeElapsed || '--';
-  } else {
-    detailsBox.classList.add('hidden');
-  }
-
-  const actionsContainer = document.getElementById('modal-actions');
-  if (!isLoggedIn) {
-    actionsContainer.innerHTML = `<button id="modal-login-btn" class="flex-1 bg-gray-900 text-white font-medium py-3.5 rounded-xl hover:bg-gray-800 transition-colors shadow-sm">Login to take action</button>`;
-    
-    document.getElementById('modal-login-btn').addEventListener('click', () => {
-      closeModal();
-      showLoginScreen();
-      toggleToLogin(); 
-    });
-  } else {
-    if (selectedSpot.status === 'available') {
-      actionsContainer.innerHTML = `<button class="flex-1 bg-gray-900 text-white font-medium py-3.5 rounded-xl hover:bg-gray-800 transition-colors">Book Spot</button>`;
-    } else if (selectedSpot.status === 'reserved') {
-      actionsContainer.innerHTML = `<button class="flex-1 bg-gray-900 text-white font-medium py-3.5 rounded-xl hover:bg-gray-800 transition-colors">Check-in Vehicle</button>`;
-    } else if (selectedSpot.status === 'occupied') {
-      actionsContainer.innerHTML = `<button class="flex-1 bg-white border-2 border-gray-200 text-gray-900 font-medium py-3.5 rounded-xl hover:border-gray-900 transition-colors">Release Spot</button>`;
-    }
-  }
-
-  backdrop.classList.remove('hidden');
-  setTimeout(() => {
-    backdrop.classList.remove('opacity-0');
-    sheet.classList.remove('modal-hidden');
-  }, 10);
-  
-  lucide.createIcons();
-}
-
-function closeModal() {
-  sheet.classList.add('modal-hidden');
-  backdrop.classList.add('opacity-0');
-  setTimeout(() => {
-    backdrop.classList.add('hidden');
-    selectedSpot = null;
-  }, 300);
-}
-
-function showLoginScreen() {
-  document.getElementById('dashboard-screen').classList.add('hidden');
-  document.getElementById('login-screen').classList.remove('hidden');
-}
-
-function showDashboardScreen() {
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('dashboard-screen').classList.remove('hidden');
-}
-
-function updateHeaderNav() {
-  if (isLoggedIn) {
-    document.getElementById('nav-login-btn').classList.add('hidden');
-    document.getElementById('nav-register-btn').classList.add('hidden');
-    document.getElementById('logout-btn').classList.remove('hidden');
-  } else {
-    document.getElementById('nav-login-btn').classList.remove('hidden');
-    document.getElementById('nav-register-btn').classList.remove('hidden');
-    document.getElementById('logout-btn').classList.add('hidden');
-  }
-}
-
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const authTitle = document.getElementById('auth-title');
-const authSubtitle = document.getElementById('auth-subtitle');
-
-function toggleToRegister() {
-  loginForm.classList.add('hidden');
-  registerForm.classList.remove('hidden');
-  authTitle.innerText = "Create Account";
-  authSubtitle.innerText = "Fill in the details to register";
-}
-
-function toggleToLogin() {
-  registerForm.classList.add('hidden');
-  loginForm.classList.remove('hidden');
-  authTitle.innerText = "AutoSystemPark";
-  authSubtitle.innerText = "Sign in to manage the space";
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  lucide.createIcons();
-  
-  updateHeaderNav();
-  
-  document.getElementById('switch-to-register').addEventListener('click', toggleToRegister);
-  document.getElementById('switch-to-login').addEventListener('click', toggleToLogin);
-  
-  if (FORCE_SHOW_REGISTER) {
-      showLoginScreen();
-      toggleToRegister();
-  } else if (FORCE_SHOW_LOGIN) {
-      showLoginScreen();
-      toggleToLogin();
-  } else {
-      showDashboardScreen(); 
-  }
-  
-  renderDashboard();
-
-  document.getElementById('nav-login-btn').addEventListener('click', () => {
-    showLoginScreen();
-    toggleToLogin(); 
-  });
-
-  document.getElementById('nav-register-btn').addEventListener('click', () => {
-    showLoginScreen();
-    toggleToRegister(); 
-  });
-
-  document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-    showDashboardScreen();
-  });
-
-  document.querySelectorAll('.filter-card').forEach(card => {
-    card.addEventListener('click', (e) => {
-      const type = card.getAttribute('data-filter');
-      currentFilter = currentFilter === type ? 'all' : type;
-      updateFilterUI();
-      renderDashboard();
-    });
-  });
-
-  const handleMapClick = (e) => {
-    const spotElement = e.target.closest('.parking-spot');
-    if (spotElement) {
-      const spotId = spotElement.getAttribute('data-id');
-      openModal(spotId);
-    }
-  };
-  
-  document.getElementById('zone-a').addEventListener('click', handleMapClick);
-  document.getElementById('zone-b').addEventListener('click', handleMapClick);
-  document.getElementById('zone-c').addEventListener('click', handleMapClick); 
-
-  document.getElementById('modal-close').addEventListener('click', closeModal);
-  backdrop.addEventListener('click', closeModal);
+// ── Scroll reveal ─────────────────────────────────
+new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
+},{threshold:.1}).observe && document.querySelectorAll('.reveal').forEach(r=>{
+  new IntersectionObserver(entries=>entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); }),{threshold:.1}).observe(r);
 });
+
+// ── Auth modal ────────────────────────────────────
+function openAuth(tab){
+  document.getElementById('authOverlay').classList.add('open');
+  switchTab(tab||'login');
+  document.body.style.overflow='hidden';
+}
+function closeAuth(){
+  document.getElementById('authOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+function switchTab(tab){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f=>f.classList.remove('active'));
+  const T=tab.charAt(0).toUpperCase()+tab.slice(1);
+  document.getElementById('tab'+T).classList.add('active');
+  document.getElementById('form'+T).classList.add('active');
+}
+document.getElementById('authOverlay').addEventListener('click',function(e){ if(e.target===this) closeAuth(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAuth(); });
+
+// ── DASHBOARD UI LOGIC ────────────────────────────
+
+const navDashboard = document.getElementById('nav-dashboard');
+const navParking = document.getElementById('nav-parking');
+const viewDashboard = document.getElementById('view-dashboard');
+const viewParking = document.getElementById('view-parking');
+let mapBuilt = false;
+
+function dbView(v) {
+    if(v === 'dash') {
+        navDashboard.classList.add('active');
+        navParking.classList.remove('active');
+        viewDashboard.style.display = 'flex';
+        viewParking.style.display = 'none';
+    } else {
+        navParking.classList.add('active');
+        navDashboard.classList.remove('active');
+        viewDashboard.style.display = 'none';
+        viewParking.style.display = 'block';
+        if(!mapBuilt) buildMap();
+    }
+}
+
+// Generimi i Hartës me të dhënat nga PHP
+function buildMap() {
+    mapBuilt = true;
+    const container = document.getElementById('map-container');
+    if(!ALL_SPOTS.length) { container.innerHTML = '<p>Nuk ka vende të konfiguruara.</p>'; return; }
+
+    const zones = {};
+    ALL_SPOTS.forEach(s => { 
+        if(!zones[s.zone]) zones[s.zone] = []; 
+        zones[s.zone].push(s); 
+    });
+    container.innerHTML = '';
+
+    Object.keys(zones).sort().forEach(z => {
+        let sectorHTML = `<div class="sector-container"><h3 class="sector-title">Sektori ${z}</h3><div class="spot-grid">`;
+        zones[z].forEach(spot => {
+            let classes = 'spot-item';
+            let onClick = `onclick="bookSpot('${spot.id}')"`;
+            if (spot.status !== 'available') {
+                classes += ' occupied';
+                onClick = '';
+            }
+            sectorHTML += `<div id="spot-${spot.id}" class="${classes}" ${onClick}>${spot.id}</div>`;
+        });
+        sectorHTML += `</div></div>`;
+        container.innerHTML += sectorHTML;
+    });
+}
+
+// Logjika e Rezervimit dhe Sliderit
+const sliderTrack = document.getElementById('sliderTrack');
+const notifBadge = document.getElementById('notif-badge');
+let maxScrolls = 0; // Përtej kartës 'Historiku'
+
+function bookSpot(spotId) {
+    const spotEl = document.getElementById(`spot-${spotId}`);
+    
+    if(spotEl.classList.contains('occupied')) {
+        alert('Ky vend është i zënë!');
+        return;
+    }
+    
+    if(!confirm(`Dëshironi të rezervoni vendin ${spotId}?`)) return;
+
+    spotEl.classList.add('occupied');
+    notifBadge.style.display = 'flex';
+    
+    // Kthehu automatikisht te Dashboard
+    dbView('dash');
+
+    // Krijojmë kartën e re me stilin Snaphunt
+    const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const newCard = document.createElement('div');
+    newCard.className = 'job-card';
+    newCard.innerHTML = `
+        <div class="job-banner" style="background-color: #1a1a1a;">
+            <div class="company-logo" style="background:#fff;"><strong style="color:var(--teal); font-size:20px;">${spotId}</strong></div>
+            <div class="no-match-badge" style="color: var(--teal);">RESERVED</div>
+        </div>
+        <div class="job-body">
+            <div class="job-company">Parkim Aktiv</div>
+            <div class="job-title">Automjeti juaj u regjistrua me sukses në Sektorin ${spotId.charAt(0)}</div>
+            <div class="job-location">Vendi fizik: ${spotId}</div>
+            <div class="open-badge" style="border-color: #2dde98; color: #2dde98;">ACTIVE</div>
+            <div class="status-bars">
+                <span class="active" style="background:#2dde98;"></span><span class="active" style="background:#2dde98;"></span><span class="active" style="background:#2dde98;"></span><span></span><span></span>
+            </div>
+            <div class="job-footer-text">
+                <i class="fa-solid fa-clock" style="color: #2dde98;"></i>
+                <div>Koha e hyrjes:<br><span style="color:#2dde98; font-size: 11px;">${now}</span></div>
+            </div>
+            <div class="withdraw-btn" style="color: #ff6c5f;" onclick="endSession(this, '${spotId}')">
+                <i class="fa-solid fa-circle-xmark"></i> Përfundo & Paguaj
+            </div>
+        </div>
+    `;
+    
+    sliderTrack.insertBefore(newCard, sliderTrack.firstChild);
+    maxScrolls++;
+}
+
+function endSession(btnElement, spotId) {
+    if(!confirm(`Përfundo sesionin për vendin ${spotId}? Pagesa do të procesohet.`)) return;
+    
+    btnElement.closest('.job-card').remove();
+    
+    const spotEl = document.getElementById(`spot-${spotId}`);
+    if(spotEl) spotEl.classList.remove('occupied');
+    
+    maxScrolls = Math.max(0, maxScrolls - 1);
+    if(maxScrolls === 0) {
+        notifBadge.style.display = 'none';
+    }
+    
+    alert(`Pagesa për vendin ${spotId} u krye me sukses!`);
+}
+
+// Lëvizja e Sliderit
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+let position = 0;
+const itemWidth = 340; // Gjerësia (320) + gap (20)
+
+nextBtn.addEventListener('click', () => {
+    if (position < maxScrolls) { // Lejon scroll vetëm aq karta sa janë
+        position++;
+        sliderTrack.style.transform = `translateX(-${position * itemWidth}px)`;
+    }
+});
+
+prevBtn.addEventListener('click', () => {
+    if (position > 0) {
+        position--;
+        sliderTrack.style.transform = `translateX(-${position * itemWidth}px)`;
+    }
+});
+
+// Numëruesi i Vendeve të Lira
+(function ctr(id,t){ const el=document.getElementById(id); if(!el) return; let n=0; const s=Math.ceil(t/60); const i=setInterval(()=>{ n+=s; if(n>=t){el.textContent=t;clearInterval(i);}else el.textContent=n; },24); })('statSpots', TOTAL_SPOTS);
+let liveN=24;
+setInterval(()=>{ liveN=Math.max(5,Math.min(40,liveN+Math.floor(Math.random()*5-2))); ['liveSpots','statFree'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=liveN; }); },4000);
