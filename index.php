@@ -54,7 +54,7 @@ $occupied_spots = count(array_filter($db_spots, fn($s) => $s['status'] === 'occu
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Parkster — Park Smarter</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -397,16 +397,69 @@ $occupied_spots = count(array_filter($db_spots, fn($s) => $s['status'] === 'occu
             </div>
         </div>
 
-        <div id="view-parking" class="parking-map-wrapper">
-            <div class="parking-header">
-                <h2><i class="fa-solid fa-map"></i> Zgjidh Vendin e Parkimit</h2>
-                <div class="legend">
-                    <span><div class="box free"></div> I Lirë</span>
-                    <span><div class="box taken"></div> I Zënë</span>
+        <div id="view-parking" style="display:none;">
+            <div class="parking-split-view">
+                <div id="map-panel">
+                    <div class="map-wrap">
+                        <div class="garage-bg" id="garage"></div>
+                    </div>
+                </div>
+
+                <div id="parking-sidebar">
+                    <div class="sb-header">Parking — Harta Live</div>
+                    
+                    <div class="sb-section">
+                        <div class="stat-row">
+                        <div class="stat"><div class="stat-n g" id="cnt-f">0</div><div class="stat-l">I LIRË</div></div>
+                        <div class="stat"><div class="stat-n y" id="cnt-r">0</div><div class="stat-l">REZERVUAR</div></div>
+                        <div class="stat"><div class="stat-n r" id="cnt-t">0</div><div class="stat-l">I ZËNË</div></div>
+                        </div>
+                    </div>
+
+                    <div class="sb-section">
+                        <h4>Legjenda</h4>
+                        <div class="leg-item"><div class="leg-dot g"></div> I lirë — klik për të zgjedhur</div>
+                        <div class="leg-item"><div class="leg-dot r"></div> I zënë (me makinë)</div>
+                    </div>
+
+                    <div class="sb-section" style="flex:1; overflow-y:auto;">
+                        <h4>Vendi i zgjedhur</h4>
+                        <div id="sel-empty">Kliko një vend<br>të lirë në hartë</div>
+                        <div id="sel-info" style="display:none;">
+                            <div style="margin-bottom:12px;">
+                                <div class="sel-id" id="si-id">—</div>
+                                <div class="sel-type" id="si-type">—</div>
+                            </div>
+                            <div class="info-row"><span class="lbl">Statusi</span><span class="val g" id="si-status">I lirë</span></div>
+                            <div class="info-row"><span class="lbl">Çmimi/orë</span><span class="val" id="si-rate">150 L</span></div>
+                            <div style="margin:12px 0 8px;">
+                                <h4 style="font-size:10px;font-weight:600;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Kohëzgjatja</h4>
+                                <div class="dur-row" id="dur-row">
+                                    <button class="dur active" data-h="1">1 orë</button>
+                                    <button class="dur" data-h="2">2 orë</button>
+                                    <button class="dur" data-h="3">3 orë</button>
+                                    <button class="dur" data-h="6">6 orë</button>
+                                    <button class="dur" data-h="12">12 orë</button>
+                                    <button class="dur" data-h="24">24 orë</button>
+                                </div>
+                            </div>
+                            <div class="price-box" id="price-box">
+                                <div class="price-row"><span>Çmim/orë</span><span id="pr-rate">—</span></div>
+                                <div class="price-row"><span>Kohëzgjatja</span><span id="pr-dur">—</span></div>
+                                <div class="price-row"><span>Tarifë Baze</span><span>20 L</span></div>
+                                <div class="price-total"><span class="tlbl">Total</span><span class="tval" id="pr-total">—</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="pay-btn" style="display:none;" onclick="doPay()">Konfirmo &amp; Paguaj</button>
+                    <div class="times" id="times-box" style="display:none">
+                        Check-in: <span id="t-in">—</span><br>
+                        Check-out: <span id="t-out">—</span>
+                    </div>
                 </div>
             </div>
-            
-            <div id="map-container"></div>
+            <div id="toast"></div>
         </div>
 
     </main>

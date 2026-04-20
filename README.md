@@ -33,8 +33,7 @@ PROJECT/
 │   └── functions.php   # Main functions (Login, Bookings, Analytics)
 ├── assets/             # Static files (CSS, JS, and Images)
 ├── index.php           # Landing page / Login
-├── dashboard.php       # User dashboard (Booking interface)
-├── admin.php           # Admin panel (Statistics and Financials)
+├── admin.php           # Admin panel and the same time and the dashboard inside (Statistics and Financials)
 ├── .env                # Database credentials (kept separate for security)
 └── README.md           # Project documentation
 ```

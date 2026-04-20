@@ -73,57 +73,210 @@ function dbView(v) {
     }
 }
 
-// Generimi i Hartës me të dhënat nga PHP
+// ── REALISTIC MAP GENERATOR ───────────────────────
+const RATES = { standard: 150 };
+const FEE = 20;
+let selectedSpot = null;
+let duration = 1;
+
+function carSVG() {
+    const c = '#6aaa50';
+    return `<svg class="car" viewBox="0 0 34 58" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="10" width="24" height="36" rx="4" fill="${c}" opacity=".75"/>
+      <path d="M9 10 L11 4 L23 4 L25 10z" fill="${c}" opacity=".85"/>
+      <path d="M9 46 L11 54 L23 54 L25 46z" fill="${c}" opacity=".75"/>
+      <rect x="9" y="5" width="16" height="7" rx="1" fill="rgba(180,220,255,.35)"/>
+      <rect x="9" y="46" width="16" height="6" rx="1" fill="rgba(150,150,150,.25)"/>
+      <rect x="3" y="12" width="5" height="9" rx="2" fill="#1a1a1a"/>
+      <rect x="26" y="12" width="5" height="9" rx="2" fill="#1a1a1a"/>
+      <rect x="3" y="37" width="5" height="9" rx="2" fill="#1a1a1a"/>
+      <rect x="26" y="37" width="5" height="9" rx="2" fill="#1a1a1a"/>
+      <rect x="6" y="7" width="8" height="2.5" rx="1" fill="rgba(255,60,60,.7)"/>
+      <rect x="20" y="7" width="8" height="2.5" rx="1" fill="rgba(255,60,60,.7)"/>
+      <rect x="6" y="49" width="8" height="2.5" rx="1" fill="rgba(255,230,100,.8)"/>
+      <rect x="20" y="49" width="8" height="2.5" rx="1" fill="rgba(255,230,100,.8)"/>
+      <rect x="15" y="5" width="4" height="6" rx="1" fill="rgba(255,255,255,.12)"/>
+    </svg>`;
+}
+
 function buildMap() {
     mapBuilt = true;
-    const container = document.getElementById('map-container');
-    if(!ALL_SPOTS.length) { container.innerHTML = '<p>Nuk ka vende të konfiguruara.</p>'; return; }
+    const g = document.getElementById('garage');
+    if(!ALL_SPOTS.length) { g.innerHTML = '<p style="color:#fff">Nuk ka vende të konfiguruara.</p>'; return; }
 
     const zones = {};
     ALL_SPOTS.forEach(s => { 
         if(!zones[s.zone]) zones[s.zone] = []; 
         zones[s.zone].push(s); 
     });
-    container.innerHTML = '';
+    
+    g.innerHTML = '';
+    let rowCount = 0;
+    const totalZones = Object.keys(zones).length;
 
     Object.keys(zones).sort().forEach(z => {
-        let sectorHTML = `<div class="sector-container"><h3 class="sector-title">Sektori ${z}</h3><div class="spot-grid">`;
+        const wrap = document.createElement('div');
+        wrap.className = 'row-wrap';
+
+        const lbl = document.createElement('div');
+        lbl.className = 'row-label';
+        lbl.textContent = z;
+        wrap.appendChild(lbl);
+
+        const row = document.createElement('div');
+        row.className = 'spot-row';
+
         zones[z].forEach(spot => {
-            let classes = 'spot-item';
-            let onClick = `onclick="bookSpot('${spot.id}')"`;
-            if (spot.status !== 'available') {
-                classes += ' occupied';
-                onClick = '';
+            const isTaken = spot.status !== 'available'; // Database maps to available/occupied
+            
+            const el = document.createElement('div');
+            el.className = 'spot ' + (isTaken ? 'taken' : 'free');
+            el.dataset.id = spot.id;
+
+            const sb = document.createElement('div');
+            sb.className = 'spot-status';
+            sb.textContent = isTaken ? '' : 'LIRË';
+            el.appendChild(sb);
+
+            if (isTaken) {
+                el.innerHTML += carSVG();
+            } else {
+                el.onclick = () => selectSpot(spot, el);
             }
-            sectorHTML += `<div id="spot-${spot.id}" class="${classes}" ${onClick}>${spot.id}</div>`;
+
+            const num = document.createElement('div');
+            num.className = 'spot-num';
+            num.textContent = spot.id;
+            el.appendChild(num);
+
+            row.appendChild(el);
         });
-        sectorHTML += `</div></div>`;
-        container.innerHTML += sectorHTML;
+
+        wrap.appendChild(row);
+        g.appendChild(wrap);
+
+        rowCount++;
+        // Shto një "rrugë kalimi" çdo 2 rreshta për tu dukur reale
+        if(rowCount % 2 === 0 && rowCount < totalZones) {
+            const aisle = document.createElement('div');
+            aisle.className = 'aisle';
+            g.appendChild(aisle);
+        }
     });
+
+    updateStats();
 }
 
-// Logjika e Rezervimit dhe Sliderit
-const sliderTrack = document.getElementById('sliderTrack');
-const notifBadge = document.getElementById('notif-badge');
-let maxScrolls = 0; // Përtej kartës 'Historiku'
+function selectSpot(spot, el) {
+    document.querySelectorAll('.spot.selected').forEach(s => s.classList.remove('selected'));
+    if (selectedSpot && selectedSpot.id === spot.id) {
+        selectedSpot = null; updateSidebar(); return;
+    }
+    selectedSpot = spot;
+    el.classList.add('selected');
+    updateSidebar();
+}
 
-function bookSpot(spotId) {
-    const spotEl = document.getElementById(`spot-${spotId}`);
-    
-    if(spotEl.classList.contains('occupied')) {
-        alert('Ky vend është i zënë!');
-        return;
+function updateSidebar() {
+    const empty = document.getElementById('sel-empty');
+    const info = document.getElementById('sel-info');
+    const payBtn = document.getElementById('pay-btn');
+    const timesBox = document.getElementById('times-box');
+  
+    if (!selectedSpot) {
+      empty.style.display = 'block'; 
+      info.style.display = 'none';
+      payBtn.style.display = 'none'; 
+      timesBox.style.display = 'none';
+      return;
     }
     
-    if(!confirm(`Dëshironi të rezervoni vendin ${spotId}?`)) return;
+    empty.style.display = 'none'; 
+    info.style.display = 'block';
+    payBtn.style.display = 'block'; 
+    timesBox.style.display = 'block';
+  
+    document.getElementById('si-id').textContent = selectedSpot.id;
+    document.getElementById('si-type').textContent = 'Standard — Sektori ' + selectedSpot.zone;
+    document.getElementById('si-status').textContent = 'I lirë';
+    const rate = RATES.standard;
+    document.getElementById('si-rate').textContent = rate + ' L';
+    document.getElementById('pr-rate').textContent = rate + ' L';
+    document.getElementById('pr-dur').textContent = duration + ' orë';
+    document.getElementById('pr-total').textContent = (rate * duration + FEE) + ' L';
+  
+    const now = new Date();
+    const out = new Date(now.getTime() + duration * 3600000);
+    document.getElementById('t-in').textContent = fmtTime(now);
+    document.getElementById('t-out').textContent = fmtTime(out);
+}
 
-    spotEl.classList.add('occupied');
-    notifBadge.style.display = 'flex';
+function fmtTime(d) {
+    return d.toTimeString().slice(0,5);
+}
+
+// Kohëzgjatja butona
+document.getElementById('dur-row')?.addEventListener('click', e => {
+    const b = e.target.closest('.dur');
+    if (!b) return;
+    document.querySelectorAll('.dur').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    duration = parseInt(b.dataset.h);
+    updateSidebar();
+});
+
+// Përditëso statistikat e vendeve të lira/zëna nga DOM i ri
+function updateStats() {
+    const spots = document.querySelectorAll('.spot');
+    let f=0, r=0, t=0;
+    spots.forEach(s => {
+        if(s.classList.contains('free')) f++;
+        else if(s.classList.contains('reserved')) r++;
+        else if(s.classList.contains('taken')) t++;
+    });
+    const cF = document.getElementById('cnt-f'); if(cF) cF.textContent = f;
+    const cR = document.getElementById('cnt-r'); if(cR) cR.textContent = r;
+    const cT = document.getElementById('cnt-t'); if(cT) cT.textContent = t;
+}
+
+// Llogaritjet dhe Shtimi ne Harta & Slider
+const sliderTrack = document.getElementById('sliderTrack');
+const notifBadge = document.getElementById('notif-badge');
+let maxScrolls = 0; 
+
+function doPay() {
+    if (!selectedSpot) return;
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true; btn.textContent = 'Duke procesuar...';
     
-    // Kthehu automatikisht te Dashboard
-    dbView('dash');
+    setTimeout(() => {
+        // Ndryshimi vizual i spotit
+        const el = document.querySelector(`.spot[data-id="${selectedSpot.id}"]`);
+        if (el) {
+            el.classList.remove('free', 'selected');
+            el.classList.add('taken');
+            el.querySelector('.spot-status').textContent = '';
+            el.innerHTML += carSVG();
+            el.onclick = null;
+        }
+        
+        toast('Konfirmuar! Vendi ' + selectedSpot.id + ' u rezervua me sukses.');
+        
+        // Krijimi i kartës së faturës
+        createJobCard(selectedSpot.id);
+        
+        selectedSpot = null;
+        updateSidebar();
+        updateStats();
+        btn.disabled = false; btn.textContent = 'Konfirmo & Paguaj';
+        
+        // Kthehu automatikisht te Dashboard për të parë faturën
+        setTimeout(() => dbView('dash'), 1000);
+    }, 1400);
+}
 
-    // Krijojmë kartën e re me stilin Snaphunt
+function createJobCard(spotId) {
+    notifBadge.style.display = 'flex';
     const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     const newCard = document.createElement('div');
     newCard.className = 'job-card';
@@ -134,8 +287,8 @@ function bookSpot(spotId) {
         </div>
         <div class="job-body">
             <div class="job-company">Parkim Aktiv</div>
-            <div class="job-title">Automjeti juaj u regjistrua me sukses në Sektorin ${spotId.charAt(0)}</div>
-            <div class="job-location">Vendi fizik: ${spotId}</div>
+            <div class="job-title">Automjeti u regjistrua me sukses në Sektorin ${spotId.charAt(0)}</div>
+            <div class="job-location">Vendi fizik: ${spotId} | Koha: ${duration} orë</div>
             <div class="open-badge" style="border-color: #2dde98; color: #2dde98;">ACTIVE</div>
             <div class="status-bars">
                 <span class="active" style="background:#2dde98;"></span><span class="active" style="background:#2dde98;"></span><span class="active" style="background:#2dde98;"></span><span></span><span></span>
@@ -155,19 +308,36 @@ function bookSpot(spotId) {
 }
 
 function endSession(btnElement, spotId) {
-    if(!confirm(`Përfundo sesionin për vendin ${spotId}? Pagesa do të procesohet.`)) return;
+    if(!confirm(`Përfundo sesionin për vendin ${spotId}? Pagesa do të mbyllet plotësisht.`)) return;
     
     btnElement.closest('.job-card').remove();
     
-    const spotEl = document.getElementById(`spot-${spotId}`);
-    if(spotEl) spotEl.classList.remove('occupied');
+    // Liroje spotin nqs prap jemi ne hartë
+    const el = document.querySelector(`.spot[data-id="${spotId}"]`);
+    if(el) { 
+        el.classList.remove('taken');
+        el.classList.add('free');
+        const car = el.querySelector('.car');
+        if(car) car.remove();
+        el.querySelector('.spot-status').textContent = 'LIRË';
+        // Rilidhim klikun
+        el.onclick = () => selectSpot({id: spotId, zone: spotId.charAt(0), status: 'available', type: 'standard'}, el);
+    }
     
     maxScrolls = Math.max(0, maxScrolls - 1);
     if(maxScrolls === 0) {
         notifBadge.style.display = 'none';
     }
     
-    alert(`Pagesa për vendin ${spotId} u krye me sukses!`);
+    updateStats();
+    alert(`Sesioni për vendin ${spotId} u mbyll me sukses!`);
+}
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    if(!t) return;
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2800);
 }
 
 // Lëvizja e Sliderit
@@ -176,21 +346,21 @@ const nextBtn = document.getElementById('nextBtn');
 let position = 0;
 const itemWidth = 340; // Gjerësia (320) + gap (20)
 
-nextBtn.addEventListener('click', () => {
-    if (position < maxScrolls) { // Lejon scroll vetëm aq karta sa janë
+nextBtn?.addEventListener('click', () => {
+    if (position < maxScrolls) {
         position++;
         sliderTrack.style.transform = `translateX(-${position * itemWidth}px)`;
     }
 });
 
-prevBtn.addEventListener('click', () => {
+prevBtn?.addEventListener('click', () => {
     if (position > 0) {
         position--;
         sliderTrack.style.transform = `translateX(-${position * itemWidth}px)`;
     }
 });
 
-// Numëruesi i Vendeve të Lira
+// Numëruesi i Vendeve të Lira Landing Page
 (function ctr(id,t){ const el=document.getElementById(id); if(!el) return; let n=0; const s=Math.ceil(t/60); const i=setInterval(()=>{ n+=s; if(n>=t){el.textContent=t;clearInterval(i);}else el.textContent=n; },24); })('statSpots', TOTAL_SPOTS);
 let liveN=24;
 setInterval(()=>{ liveN=Math.max(5,Math.min(40,liveN+Math.floor(Math.random()*5-2))); ['liveSpots','statFree'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=liveN; }); },4000);
