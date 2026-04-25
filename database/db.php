@@ -10,7 +10,14 @@ function loadEnv($path) {
     }
 }
 
-loadEnv(__DIR__ . '/.env');
+loadEnv(dirname(__DIR__) . '/.env');
+
+$requiredEnv = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS'];
+foreach ($requiredEnv as $key) {
+    if (!isset($_ENV[$key]) || $_ENV[$key] === '') {
+        die("Missing required environment variable: {$key}");
+    }
+}
 
 $host = $_ENV['DB_HOST'];
 $port = $_ENV['DB_PORT'];

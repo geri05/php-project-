@@ -57,6 +57,8 @@ $occupied_spots = count(array_filter($db_spots, fn($s) => $s['status'] === 'occu
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="assets/style.css">
+<!-- PayPal SDK — sandbox; replace client-id with your live key for production -->
+<script src="https://www.paypal.com/sdk/js?client-id=sb&currency=EUR&components=buttons&intent=capture"></script>
 </head>
 <body
   class="<?= $is_logged_in ? '' : 'landing-mode' ?>"
@@ -65,6 +67,7 @@ $occupied_spots = count(array_filter($db_spots, fn($s) => $s['status'] === 'occu
   data-force-register="<?= $force_register_view ? 'true' : 'false' ?>"
   data-spots='<?= $spots_json ?>'
   data-total-spots="<?= $total_spots ?>"
+  data-free-spots="<?= $free_spots ?>"
 >
 
 <div class="cursor" id="cursor"></div>
@@ -464,6 +467,37 @@ $occupied_spots = count(array_filter($db_spots, fn($s) => $s['status'] === 'occu
 
     </main>
 
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAYPAL PAYMENT MODAL
+═══════════════════════════════════════════ -->
+<div class="pp-overlay" id="ppOverlay">
+  <div class="pp-modal">
+    <button class="pp-close" id="ppClose"><i class="fa-solid fa-xmark"></i></button>
+    <div class="pp-header">
+      <div class="pp-logo"><i class="fa-solid fa-gem"></i> PARKSTER</div>
+      <div class="pp-title">Konfirmo Rezervimin</div>
+    </div>
+
+    <div class="pp-summary">
+      <div class="pp-row"><span class="pp-lbl">Vendi</span><span class="pp-val" id="pp-spot">—</span></div>
+      <div class="pp-row"><span class="pp-lbl">Sektori</span><span class="pp-val" id="pp-zone">—</span></div>
+      <div class="pp-row"><span class="pp-lbl">Kohëzgjatja</span><span class="pp-val" id="pp-dur">—</span></div>
+      <div class="pp-row"><span class="pp-lbl">Check-in</span><span class="pp-val" id="pp-in">—</span></div>
+      <div class="pp-row"><span class="pp-lbl">Check-out</span><span class="pp-val" id="pp-out">—</span></div>
+      <div class="pp-divider"></div>
+      <div class="pp-row pp-total-row">
+        <span class="pp-lbl">Total</span>
+        <span class="pp-total-val" id="pp-total">—</span>
+      </div>
+      <div class="pp-row"><span class="pp-lbl" style="font-size:10px;color:#aaa">Lek Albanian → EUR (approx)</span><span class="pp-val" style="font-size:11px;color:#aaa" id="pp-eur">—</span></div>
+    </div>
+
+    <div id="pp-status" class="pp-status" style="display:none;"></div>
+    <div id="paypal-button-container"></div>
+    <div class="pp-secure"><i class="fa-solid fa-lock"></i> Pagesa e sigurt me PayPal</div>
+  </div>
 </div>
 
 <script src="assets/app.js"></script>

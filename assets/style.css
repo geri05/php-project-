@@ -740,3 +740,113 @@ footer { padding:72px 60px 36px; background:var(--dark); border-top:1px solid rg
   opacity: 0; transition: .3s; pointer-events: none; z-index: 1000; white-space: nowrap;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* ═══════════════════════════════════════════
+   PAYPAL PAYMENT MODAL
+═══════════════════════════════════════════ */
+.pp-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+.pp-overlay.open {
+  opacity: 1; pointer-events: all;
+}
+.pp-modal {
+  background: #fff;
+  border-radius: 10px;
+  width: 420px; max-width: 94vw;
+  max-height: 90vh; overflow-y: auto;
+  padding: 32px 28px 24px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  transform: translateY(20px);
+  transition: transform .3s ease;
+}
+.pp-overlay.open .pp-modal {
+  transform: translateY(0);
+}
+.pp-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; font-size: 20px;
+  color: #999; cursor: pointer; line-height: 1;
+  transition: color .2s;
+}
+.pp-close:hover { color: #333; }
+
+.pp-header {
+  text-align: center; margin-bottom: 22px;
+}
+.pp-logo {
+  font-family: 'Bebas Neue', 'Barlow Condensed', sans-serif;
+  font-size: 22px; letter-spacing: 3px;
+  color: #1a1a1a; margin-bottom: 4px;
+}
+.pp-logo i { color: var(--teal, #1cc7d0); }
+.pp-title {
+  font-size: 14px; font-weight: 700; color: #333;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+.pp-summary {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.pp-row {
+  display: flex; justify-content: space-between;
+  align-items: center; font-size: 13px; margin-bottom: 8px;
+}
+.pp-row:last-child { margin-bottom: 0; }
+.pp-lbl { color: #777; font-weight: 500; }
+.pp-val { color: #222; font-weight: 600; }
+.pp-divider {
+  border: none; border-top: 1px solid #e0e0e0;
+  margin: 10px 0;
+}
+.pp-total-row {
+  padding-top: 6px;
+}
+.pp-total-val {
+  font-size: 22px; font-weight: 800;
+  color: #1a1a1a;
+}
+
+.pp-status {
+  font-size: 13px; font-weight: 600; padding: 10px 14px;
+  border-radius: 6px; margin-bottom: 14px; text-align: center;
+}
+.pp-success {
+  background: rgba(45,222,152,.12); color: #1a9b6b;
+  border: 1px solid rgba(45,222,152,.3);
+}
+.pp-error {
+  background: rgba(255,80,80,.09); color: #c0392b;
+  border: 1px solid rgba(255,80,80,.25);
+}
+
+#paypal-button-container {
+  margin-bottom: 12px;
+}
+.pp-secure {
+  text-align: center; font-size: 11px; color: #aaa;
+  display: flex; align-items: center; justify-content: center;
+  gap: 5px; margin-top: 4px;
+}
+.pp-secure i { color: #78c850; }
+
+/* PayPal paid badge on session card */
+.pp-paid-badge {
+  font-size: 11px; font-weight: 700; color: #003087;
+  background: #ffc439; border-radius: 4px;
+  padding: 3px 9px; display: inline-flex;
+  align-items: center; gap: 5px; margin-bottom: 12px;
+}
+.pp-paid-badge i { font-size: 14px; }
+
+/* Reserved spot color — yellow-ish car */
+.spot.reserved { background: #2a2600; border-color: rgba(200,168,48,.4); }
+.spot.reserved:hover { transform: none; cursor: default; }
