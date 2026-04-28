@@ -32,7 +32,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($isValid) {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['role'] = $user['role'];
-        header('Location: ../index.php');
+
+        $redirect = ($user['role'] ?? 'user') === 'admin'
+            ? '../admin.php'
+            : '../index.php';
+
+        header('Location: ' . $redirect);
         exit;
     }
 
