@@ -6,17 +6,25 @@
 //  • PayPal payment + reserve.php DB sync
 // ═══════════════════════════════════════════════════════════════════════════
 
-const IS_LOGGED_IN   = document.body.dataset.loggedIn === 'true';
-const HAS_LOGIN_ERR  = document.body.dataset.loginErr === 'true';
-const FORCE_REGISTER = document.body.dataset.forceRegister === 'true';
-const ALL_SPOTS      = JSON.parse(document.body.dataset.spots || '[]');
-const TOTAL_SPOTS    = parseInt(document.body.dataset.totalSpots || '0');
-const FREE_SPOTS_DB  = parseInt(document.body.dataset.freeSpots  || '0');
+const IS_LOGGED_IN    = document.body.dataset.loggedIn === 'true';
+const HAS_LOGIN_ERR   = document.body.dataset.loginErr === 'true';
+const FORCE_REGISTER  = document.body.dataset.forceRegister === 'true';
+const ALL_SPOTS       = JSON.parse(document.body.dataset.spots || '[]');
+const TOTAL_SPOTS     = parseInt(document.body.dataset.totalSpots  || '0');
+const FREE_SPOTS_DB   = parseInt(document.body.dataset.freeSpots   || '0');
+const RESERVED_SPOTS  = parseInt(document.body.dataset.reservedSpots  || '0');
+const OCCUPIED_SPOTS  = parseInt(document.body.dataset.occupiedSpots  || '0');
 
 // Prices & constants
-const RATE_PER_HOUR  = 150;   // ALL (Albanian Lek)
-const BASE_FEE       = 20;    // ALL
-const LEK_TO_EUR     = 0.0096; // approximate conversion
+const RATE_PER_HOUR = 150;    // ALL (Albanian Lek)
+const BASE_FEE      = 20;     // ALL
+const LEK_TO_EUR    = 0.0096; // approximate conversion
+
+// ── Seed stat elements on page load ──────────────────────────────────────────
+if (document.getElementById('statSpots'))    document.getElementById('statSpots').textContent    = TOTAL_SPOTS;
+if (document.getElementById('statFree'))     document.getElementById('statFree').textContent     = FREE_SPOTS_DB;
+if (document.getElementById('statOccupied')) document.getElementById('statOccupied').textContent = OCCUPIED_SPOTS;
+if (document.getElementById('liveSpots'))    document.getElementById('liveSpots').textContent    = FREE_SPOTS_DB;
 
 // ── Page switch ───────────────────────────────────────────────────────────────
 document.getElementById('page-landing').style.display   = IS_LOGGED_IN ? 'none'  : 'block';
@@ -171,15 +179,13 @@ function buildMap() {
 
 // Build a single spot DOM element based on its DB status
 function buildSpotEl(spot) {
-  // DB: available | reserved | occupied
   const status = spot.status; // 'available', 'reserved', 'occupied'
 
   const el = document.createElement('div');
-  // CSS class mapping
   const cssClass = status === 'available' ? 'free'
                  : status === 'reserved'  ? 'reserved'
                  : 'taken';
-  el.className = 'spot ' + cssClass;
+  el.className      = 'spot ' + cssClass;
   el.dataset.id     = spot.id;
   el.dataset.status = status;
 
@@ -221,15 +227,15 @@ function selectSpot(spot, el) {
 }
 
 function updateSidebar() {
-  const empty   = document.getElementById('sel-empty');
-  const info    = document.getElementById('sel-info');
-  const payBtn  = document.getElementById('pay-btn');
+  const empty    = document.getElementById('sel-empty');
+  const info     = document.getElementById('sel-info');
+  const payBtn   = document.getElementById('pay-btn');
   const timesBox = document.getElementById('times-box');
 
   if (!selectedSpot) {
-    empty.style.display   = 'block';
-    info.style.display    = 'none';
-    payBtn.style.display  = 'none';
+    empty.style.display    = 'block';
+    info.style.display     = 'none';
+    payBtn.style.display   = 'none';
     timesBox.style.display = 'none';
     return;
   }
@@ -253,9 +259,9 @@ function updateSidebar() {
   document.getElementById('t-out').textContent = fmtTime(out);
 }
 
-function totalLek()  { return RATE_PER_HOUR * duration + BASE_FEE; }
-function totalEur()  { return (totalLek() * LEK_TO_EUR).toFixed(2); }
-function fmtTime(d)  { return d.toTimeString().slice(0, 5); }
+function totalLek() { return RATE_PER_HOUR * duration + BASE_FEE; }
+function totalEur() { return (totalLek() * LEK_TO_EUR).toFixed(2); }
+function fmtTime(d) { return d.toTimeString().slice(0, 5); }
 
 // Duration buttons
 document.getElementById('dur-row')?.addEventListener('click', e => {
@@ -295,7 +301,6 @@ function openPP() {
   if (!selectedSpot) return;
   const overlay = document.getElementById('ppOverlay');
 
-  // Fill summary
   const now = new Date();
   const out = new Date(now.getTime() + duration * 3600000);
 
@@ -336,14 +341,13 @@ function renderPayPalButtons() {
   ppRendered = true;
   paypal.Buttons({
     style: {
-      layout:  'vertical',
-      color:   'gold',
-      shape:   'rect',
-      label:   'pay',
-      height:  44,
+      layout: 'vertical',
+      color:  'gold',
+      shape:  'rect',
+      label:  'pay',
+      height: 44,
     },
 
-    // Called when PayPal opens — use current EUR amount
     createOrder: function(data, actions) {
       return actions.order.create({
         purchase_units: [{
@@ -356,12 +360,10 @@ function renderPayPalButtons() {
       });
     },
 
-    // Called after buyer approves payment
     onApprove: function(data, actions) {
       ppStatus('Duke procesuar pagesën…', false);
 
       return actions.order.capture().then(function(details) {
-        // Payment captured — now write to DB
         const orderID = details.id;
         const body = {
           spot_number:     selectedSpot.id,
@@ -403,7 +405,6 @@ function renderPayPalButtons() {
 function onReservationSuccess(res) {
   const spotId = res.spot_number;
 
-  // Update spot visually → reserved
   const el = document.querySelector(`.spot[data-id="${spotId}"]`);
   if (el) {
     el.classList.remove('free', 'selected');
@@ -412,11 +413,9 @@ function onReservationSuccess(res) {
     el.onclick = null;
     const sb = el.querySelector('.spot-status');
     if (sb) sb.textContent = 'RES';
-    // Remove any existing SVG then add reserved-color car
     const oldCar = el.querySelector('.car');
     if (oldCar) oldCar.remove();
     el.innerHTML += carSVG('#c8a830');
-    // Re-append num
     const numEl = document.createElement('div');
     numEl.className = 'spot-num';
     numEl.textContent = spotId;
@@ -426,16 +425,13 @@ function onReservationSuccess(res) {
   toast('✓ Vendi ' + spotId + ' u rezervua me sukses!');
   createJobCard(spotId, res);
 
-  // Reset selection
   selectedSpot = null;
   updateSidebar();
   updateStats();
 
-  // Re-render PayPal buttons for next use
   ppRendered = false;
   document.getElementById('paypal-button-container').innerHTML = '';
 
-  // Close modal and navigate to dashboard after short delay
   setTimeout(() => {
     closePP();
     setTimeout(() => dbView('dash'), 400);
@@ -501,7 +497,6 @@ function endSession(btnElement, spotId) {
   maxScrolls = Math.max(0, maxScrolls - 1);
   if (maxScrolls === 0) notifBadge.style.display = 'none';
 
-  // Free the spot visually
   const el = document.querySelector(`.spot[data-id="${spotId}"]`);
   if (el) {
     el.classList.remove('taken', 'reserved', 'selected');
@@ -552,7 +547,7 @@ prevBtn?.addEventListener('click', () => {
 (function ctr(id, t) {
   const el = document.getElementById(id);
   if (!el) return;
-  let n=0;
+  let n = 0;
   const s = Math.ceil(t / 60);
   const i = setInterval(() => {
     n += s;
@@ -561,7 +556,7 @@ prevBtn?.addEventListener('click', () => {
   }, 24);
 })('statSpots', TOTAL_SPOTS);
 
-// Seed free spots counter from DB, then fluctuate slightly
+// Seed free/live counters from DB, then fluctuate slightly
 let liveN = FREE_SPOTS_DB || 24;
 ['liveSpots', 'statFree'].forEach(id => {
   const el = document.getElementById(id);
