@@ -649,7 +649,7 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
               <div class="check-icon"><i class="fa-solid fa-car"></i></div>
               <div class="checklist-text"><h4>Find a Spot</h4><p>View the live parking map</p></div>
             </div>
-            <div class="checklist-item">
+            <div class="checklist-item" onclick="openHistoryModal()" style="cursor:pointer;">
               <div class="check-icon"><i class="fa-solid fa-credit-card"></i></div>
               <div class="checklist-text"><h4>Payment History</h4><p>View your billing records</p></div>
             </div>
@@ -694,6 +694,14 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
 
           <div id="parking-sidebar">
             <div class="sb-header">Parking — Live Map</div>
+
+            <div class="sb-section">
+              <div class="spot-search-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="spotSearch" class="spot-search" placeholder="Search spot (e.g. A12)" autocomplete="off">
+              </div>
+              <div class="spot-search-count" id="spotSearchCount"></div>
+            </div>
 
             <div class="sb-section">
               <div class="stat-row">
@@ -830,6 +838,11 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
           <div class="name">Cash</div>
           <div class="desc">Pay at counter</div>
         </div>
+        <div class="pay-method" data-method="paypal" onclick="selectPayMethod('paypal')">
+          <i class="fa-brands fa-paypal"></i>
+          <div class="name">PayPal</div>
+          <div class="desc">Pay with your account</div>
+        </div>
       </div>
 
       <div id="payCardForm" class="pay-card-form show">
@@ -853,6 +866,14 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
         </div>
       </div>
 
+      <div id="payPaypalBox" class="pay-paypal-box">
+        <div id="paypalButtonContainer"></div>
+        <p class="pay-paypal-hint">
+          <i class="fa-solid fa-circle-info"></i>
+          Sandbox mode — use a PayPal test account to complete the payment.
+        </p>
+      </div>
+
       <div class="pay-actions">
         <button class="cancel" onclick="closePayModal()">Cancel</button>
         <button class="confirm" id="payConfirmBtn" onclick="confirmPayment()">
@@ -862,6 +883,30 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
     </div>
   </div>
 
+  <div id="historyModal" class="pay-modal-bg">
+    <div class="pay-modal history-modal">
+      <h2><i class="fa-solid fa-receipt" style="color:#1cc7d0;"></i> Payment History</h2>
+      <p class="sub">All your bills, downloadable anytime.</p>
+
+      <div class="history-search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="historySearch" class="history-search"
+               placeholder="Search by bill, spot, method or date" autocomplete="off">
+      </div>
+
+      <div id="historyList" class="history-list">
+        <div class="history-empty">
+          <i class="fa-solid fa-circle-notch fa-spin"></i> Loading…
+        </div>
+      </div>
+
+      <div class="pay-actions">
+        <button class="cancel" onclick="closeHistoryModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD&intent=capture"></script>
   <script src="assets/app.js"></script>
 
 </body>

@@ -228,6 +228,26 @@ function updateSidebar() {
   document.getElementById('si-id').textContent = selectedSpot.id;
 }
 
+const spotSearchInput = document.getElementById('spotSearch');
+const spotSearchCount = document.getElementById('spotSearchCount');
+if (spotSearchInput) {
+  spotSearchInput.addEventListener('input', () => {
+    const q = spotSearchInput.value.trim().toUpperCase();
+    const spots = document.querySelectorAll('#garage .spot');
+    let matches = 0;
+    spots.forEach(el => {
+      const id = (el.dataset.id || '').toUpperCase();
+      const isMatch = q !== '' && id.includes(q);
+      el.classList.toggle('dimmed', q !== '' && !isMatch);
+      el.classList.toggle('match', isMatch);
+      if (isMatch) matches++;
+    });
+    spotSearchCount.textContent = q === ''
+      ? ''
+      : `${matches} match${matches === 1 ? '' : 'es'}`;
+  });
+}
+
 function updateStats() {
   const spots = document.querySelectorAll('.spot');
   let f = 0, r = 0, t = 0;
@@ -618,11 +638,79 @@ function selectPayMethod(method) {
   document.querySelectorAll('.pay-method').forEach(el => {
     el.classList.toggle('selected', el.dataset.method === method);
   });
-  const cardForm = document.getElementById('payCardForm');
-  if (cardForm) cardForm.classList.toggle('show', method === 'card');
+  const cardForm   = document.getElementById('payCardForm');
+  const paypalBox  = document.getElementById('payPaypalBox');
+  const confirmBtn = document.getElementById('payConfirmBtn');
+  if (cardForm)   cardForm.classList.toggle('show', method === 'card');
+  if (paypalBox)  paypalBox.classList.toggle('show', method === 'paypal');
+  if (confirmBtn) confirmBtn.style.display = (method === 'paypal') ? 'none' : '';
+
+  if (method === 'paypal') renderPaypalButton();
+}
+
+// Sandbox conversion rate — the project prices in Lekë (L) but the PayPal
+// sandbox here is set to USD. Adjust if a real PayPal merchant currency is used.
+const PAYPAL_LEK_TO_USD = 100;
+let paypalButtonRendered = false;
+
+function renderPaypalButton() {
+  if (paypalButtonRendered) return;
+  if (typeof paypal === 'undefined') {
+    alert('PayPal SDK failed to load. Check your internet connection.');
+    return;
+  }
+
+  paypal.Buttons({
+    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
+
+    createOrder: function(_data, actions) {
+      const lek = parseInt(document.getElementById('payAmount')?.textContent || '0', 10);
+      const usd = Math.max(0.01, +(lek / PAYPAL_LEK_TO_USD).toFixed(2));
+      return actions.order.create({
+        purchase_units: [{
+          description: 'Parking session — spot ' + (document.getElementById('paySpot')?.textContent || ''),
+          amount: { value: usd.toFixed(2), currency_code: 'USD' }
+        }]
+      });
+    },
+
+    onApprove: function(_data, actions) {
+      return actions.order.capture().then(function(details) {
+        fetch('functions/pay_session.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payment_method:  'paypal',
+            paypal_order_id: details.id
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            toast(`✓ Paid ${data.amount} L (PayPal)`);
+            closePayModal();
+            setTimeout(() => window.location.href = 'index.php', 1000);
+          } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => alert('Network error: ' + err.message));
+      });
+    },
+
+    onError: function(err) {
+      alert('PayPal error: ' + (err && err.message ? err.message : 'Payment could not be completed.'));
+    }
+  }).render('#paypalButtonContainer');
+
+  paypalButtonRendered = true;
 }
 
 function confirmPayment() {
+  if (selectedPayMethod === 'paypal') {
+    alert('Please use the PayPal button above to complete the payment.');
+    return;
+  }
   if (selectedPayMethod === 'card') {
     const num    = document.getElementById('cardNumber')?.value.replace(/\s/g, '') || '';
     const expiry = document.getElementById('cardExpiry')?.value || '';
@@ -695,6 +783,119 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('payModal')?.addEventListener('click', function(e) {
     if (e.target === this) closePayModal();
   });
+  document.getElementById('historyModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeHistoryModal();
+  });
+});
+
+function openHistoryModal() {
+  if (!IS_LOGGED_IN) {
+    alert('Please log in to view your payment history.');
+    return;
+  }
+  const modal = document.getElementById('historyModal');
+  if (!modal) return;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadPaymentHistory();
+}
+
+function closeHistoryModal() {
+  const modal = document.getElementById('historyModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+let _paymentsCache = [];
+
+function renderPaymentHistory(payments) {
+  const list = document.getElementById('historyList');
+  if (!list) return;
+
+  if (!payments.length) {
+    list.innerHTML = '<div class="history-empty"><i class="fa-solid fa-inbox"></i><br>No matching payments.</div>';
+    return;
+  }
+
+  const methodIcon = m => ({
+    card:   'fa-credit-card',
+    cash:   'fa-money-bill-wave',
+    paypal: 'fa-brands fa-paypal'
+  })[m] || 'fa-circle-dollar-to-slot';
+
+  list.innerHTML = payments.map(p => {
+    const paid   = new Date(p.paid_at.replace(' ', 'T')).toLocaleString();
+    const amount = parseFloat(p.amount).toFixed(2);
+    const spot   = p.spot_number || '—';
+    const method = (p.payment_method || '').toLowerCase();
+    const icon   = methodIcon(method);
+    const iCls   = icon.startsWith('fa-brands') ? icon : 'fa-solid ' + icon;
+    const billNo = 'BILL-' + String(p.payment_id).padStart(6, '0');
+
+    return `
+      <div class="history-row">
+        <div class="history-icon"><i class="${iCls}"></i></div>
+        <div class="history-info">
+          <div class="history-title">${billNo} <span class="badge">${method}</span></div>
+          <div class="history-meta">Spot ${spot} · ${paid}</div>
+        </div>
+        <div class="history-amount">${amount} L</div>
+        <a class="history-dl" href="functions/download_bill.php?payment_id=${p.payment_id}"
+           title="Download bill" download>
+          <i class="fa-solid fa-download"></i>
+        </a>
+      </div>`;
+  }).join('');
+}
+
+function filterPaymentHistory(q) {
+  q = (q || '').trim().toLowerCase();
+  if (!q) return _paymentsCache.slice();
+  return _paymentsCache.filter(p => {
+    const billNo = 'bill-' + String(p.payment_id).padStart(6, '0');
+    const paid   = new Date(p.paid_at.replace(' ', 'T')).toLocaleString().toLowerCase();
+    const hay = [
+      billNo,
+      (p.spot_number || '').toLowerCase(),
+      (p.payment_method || '').toLowerCase(),
+      (p.payment_type   || '').toLowerCase(),
+      String(p.amount || ''),
+      paid
+    ].join(' ');
+    return hay.includes(q);
+  });
+}
+
+function loadPaymentHistory() {
+  const list = document.getElementById('historyList');
+  if (!list) return;
+  list.innerHTML = '<div class="history-empty"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</div>';
+
+  const searchInput = document.getElementById('historySearch');
+  if (searchInput) searchInput.value = '';
+
+  fetch('functions/payment_history.php')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        list.innerHTML = '<div class="history-empty">Error: ' + (data.error || 'Unknown error') + '</div>';
+        return;
+      }
+      _paymentsCache = data.payments || [];
+      if (!_paymentsCache.length) {
+        list.innerHTML = '<div class="history-empty"><i class="fa-solid fa-inbox"></i><br>No payments yet.</div>';
+        return;
+      }
+      renderPaymentHistory(_paymentsCache);
+    })
+    .catch(err => {
+      list.innerHTML = '<div class="history-empty">Network error: ' + err.message + '</div>';
+    });
+}
+
+document.getElementById('historySearch')?.addEventListener('input', e => {
+  renderPaymentHistory(filterPaymentHistory(e.target.value));
 });
 
 function toast(msg) {

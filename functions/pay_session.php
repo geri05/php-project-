@@ -39,8 +39,14 @@ $data = json_decode($raw, true);
 if (!is_array($data)) $data = $_POST;
 
 $payment_method = strtolower(trim($data['payment_method'] ?? ''));
-if (!in_array($payment_method, ['cash', 'card'], true)) {
+if (!in_array($payment_method, ['cash', 'card', 'paypal'], true)) {
     echo json_encode(['success' => false, 'error' => 'Invalid payment method']);
+    exit;
+}
+
+$paypal_order_id = trim((string)($data['paypal_order_id'] ?? ''));
+if ($payment_method === 'paypal' && $paypal_order_id === '') {
+    echo json_encode(['success' => false, 'error' => 'Missing PayPal order id']);
     exit;
 }
 
@@ -88,6 +94,10 @@ try {
     ");
     $p->execute([$session_id, $total_fee, $payment_method]);
     $payment_id = (int) $p->fetchColumn();
+
+    if ($payment_method === 'paypal') {
+        error_log("[pay_session.php] PayPal order $paypal_order_id captured for payment_id=$payment_id (session_id=$session_id, amount=$total_fee)");
+    }
 
     $u = $pdo->prepare("
         UPDATE parking_sessions
