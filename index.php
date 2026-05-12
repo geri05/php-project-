@@ -553,9 +553,18 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
         <a href="functions/logout.php"
            style="color:var(--text-dark);text-decoration:none;font-size:12px;font-weight:700;
                   position:relative;z-index:11;pointer-events:all;cursor:pointer;">LOG OUT</a>
-        <span class="bell" style="position:relative;z-index:11;">
+        <span class="bell" id="notifBell" onclick="toggleNotifPanel(event)" style="position:relative;z-index:11;">
           <i class="fa-solid fa-bell"></i>
           <span id="notif-badge" class="notification-dot"></span>
+          <div id="notifPanel" class="notif-panel" onclick="event.stopPropagation()">
+            <div class="notif-header">
+              <span><i class="fa-solid fa-bell"></i> Notifications</span>
+              <button class="notif-clear" onclick="markAllNotifRead()">Mark all read</button>
+            </div>
+            <div id="notifList" class="notif-list">
+              <div class="notif-empty"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</div>
+            </div>
+          </div>
         </span>
         <div class="user-profile" onclick="dbView('dash')" style="cursor:pointer;position:relative;z-index:10;display:flex;align-items:center;gap:8px;">
           <span><?= $current_user ? htmlspecialchars($current_user['first_name']) : 'User' ?></span>
@@ -653,7 +662,7 @@ $is_admin = $current_user && ($current_user['role'] ?? '') === 'admin';
               <div class="check-icon"><i class="fa-solid fa-credit-card"></i></div>
               <div class="checklist-text"><h4>Payment History</h4><p>View your billing records</p></div>
             </div>
-            <div class="checklist-item">
+            <div class="checklist-item" onclick="openNotifFromTile(event)" style="cursor:pointer;">
               <div class="check-icon"><i class="fa-solid fa-bell"></i></div>
               <div class="checklist-text"><h4>Notifications</h4><p>Manage your alerts</p></div>
             </div>

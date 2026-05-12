@@ -918,6 +918,113 @@ if (IS_LOGGED_IN) {
   setInterval(loadUserStatus, 60000);
 }
 
+const NOTIF_SEEN_KEY = 'parkster_notif_seen';
+let _notifCache = [];
+
+function getSeenNotifIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(NOTIF_SEEN_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+function persistSeenNotifIds(set) {
+  const arr = Array.from(set).slice(-200);
+  localStorage.setItem(NOTIF_SEEN_KEY, JSON.stringify(arr));
+}
+
+function renderNotifBadge() {
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  const seen = getSeenNotifIds();
+  const unread = _notifCache.filter(n => !seen.has(n.id)).length;
+  if (unread > 0) {
+    badge.textContent = unread > 9 ? '9+' : unread;
+    badge.style.display = 'flex';
+  } else {
+    badge.textContent = '';
+    badge.style.display = 'none';
+  }
+}
+
+function renderNotifList() {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (!_notifCache.length) {
+    list.innerHTML = '<div class="notif-empty"><i class="fa-solid fa-bell-slash"></i><br>No notifications yet.</div>';
+    return;
+  }
+  const seen = getSeenNotifIds();
+  list.innerHTML = _notifCache.map(n => {
+    const time = new Date(n.time).toLocaleString();
+    const unread = !seen.has(n.id) ? ' unread' : '';
+    return `
+      <div class="notif-item notif-${n.level}${unread}">
+        <div class="notif-icon"><i class="fa-solid ${n.icon}"></i></div>
+        <div class="notif-body">
+          <div class="notif-title">${n.title}</div>
+          <div class="notif-msg">${n.message}</div>
+          <div class="notif-time">${time}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function fetchNotifications() {
+  if (!IS_LOGGED_IN) return;
+  fetch('functions/notifications.php')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) return;
+      _notifCache = data.notifications || [];
+      renderNotifBadge();
+      const panel = document.getElementById('notifPanel');
+      if (panel && panel.classList.contains('open')) renderNotifList();
+    })
+    .catch(() => {});
+}
+
+function toggleNotifPanel(e) {
+  if (e) e.stopPropagation();
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open', opening);
+  if (opening) {
+    renderNotifList();
+    const seen = getSeenNotifIds();
+    _notifCache.forEach(n => seen.add(n.id));
+    persistSeenNotifIds(seen);
+    renderNotifBadge();
+  }
+}
+
+function openNotifFromTile(e) {
+  if (e) e.stopPropagation();
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  if (!panel.classList.contains('open')) toggleNotifPanel();
+  document.getElementById('notifBell')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function markAllNotifRead() {
+  const seen = getSeenNotifIds();
+  _notifCache.forEach(n => seen.add(n.id));
+  persistSeenNotifIds(seen);
+  renderNotifBadge();
+  renderNotifList();
+}
+
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('notifPanel');
+  const bell  = document.getElementById('notifBell');
+  if (!panel || !panel.classList.contains('open')) return;
+  if (panel.contains(e.target) || bell?.contains(e.target)) return;
+  panel.classList.remove('open');
+});
+
+if (IS_LOGGED_IN) {
+  fetchNotifications();
+  setInterval(fetchNotifications, 30000);
+}
+
 function openModal()  { document.getElementById('editProfileModal').style.display = 'flex'; }
 function closeModal() { document.getElementById('editProfileModal').style.display = 'none'; }
 
