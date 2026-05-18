@@ -192,6 +192,45 @@ $activeReservations = (int)$pdo->query("SELECT COUNT(*) FROM reservations WHERE 
 $activeSessions     = (int)$pdo->query("SELECT COUNT(*) FROM parking_sessions WHERE status = 'active'")->fetchColumn();
 $totalRevenue       = (float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments")->fetchColumn();
 
+// Income breakdown by calendar period (PostgreSQL date_trunc uses the server timezone).
+$incomeToday   = (float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE paid_at >= CURRENT_DATE")->fetchColumn();
+$incomeWeek    = (float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE paid_at >= date_trunc('week',  CURRENT_DATE)")->fetchColumn();
+$incomeMonth   = (float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE paid_at >= date_trunc('month', CURRENT_DATE)")->fetchColumn();
+$incomeYear    = (float)$pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE paid_at >= date_trunc('year',  CURRENT_DATE)")->fetchColumn();
+
+$paymentsCount = (int)$pdo->query("SELECT COUNT(*) FROM payments")->fetchColumn();
+$avgPayment    = $paymentsCount > 0 ? $totalRevenue / $paymentsCount : 0.0;
+
+$incomeByMethod = $pdo->query("
+    SELECT payment_method, COALESCE(SUM(amount),0) AS total, COUNT(*) AS cnt
+    FROM payments
+    GROUP BY payment_method
+    ORDER BY total DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$incomeByType = $pdo->query("
+    SELECT payment_type, COALESCE(SUM(amount),0) AS total, COUNT(*) AS cnt
+    FROM payments
+    GROUP BY payment_type
+    ORDER BY total DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+// Daily series for the last 7 days, filling gaps with 0 so the chart is continuous.
+$rawDaily = $pdo->query("
+    SELECT TO_CHAR(DATE(paid_at), 'YYYY-MM-DD') AS day, COALESCE(SUM(amount),0) AS total
+    FROM payments
+    WHERE paid_at >= CURRENT_DATE - INTERVAL '6 days'
+    GROUP BY day
+    ORDER BY day
+")->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$last7Days = [];
+for ($i = 6; $i >= 0; $i--) {
+    $d = (new DateTime("-{$i} days"))->format('Y-m-d');
+    $last7Days[$d] = isset($rawDaily[$d]) ? (float)$rawDaily[$d] : 0.0;
+}
+$max7 = max($last7Days) ?: 1.0;
+
 $users = $pdo->query('
     SELECT id, first_name, last_name, email, role, created_at, auth_provider
     FROM users
@@ -297,6 +336,27 @@ function fmt_dt($s) {
     .empty { padding:14px; color:var(--muted); text-align:center; }
     @media (max-width:980px){ .grid{grid-template-columns:repeat(2,1fr);} }
     @media (max-width:640px){ .grid{grid-template-columns:1fr;} .wrap{padding:12px;} }
+
+    .balance-card { margin-bottom:16px; }
+    .balance-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+    .bal-tile { background:var(--card-2); border:1px solid var(--border); border-radius:10px; padding:12px; }
+    .bal-amount { font-size:22px; font-weight:700; margin:6px 0; }
+    .bal-sub { margin:0 0 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px;}
+    .balance-split { display:grid; grid-template-columns:1.4fr 1fr; gap:18px; }
+    .bar-chart { display:flex; align-items:flex-end; gap:10px; height:160px; padding:10px;
+                 background:var(--card-2); border:1px solid var(--border); border-radius:10px; }
+    .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+    .bar-val { font-size:11px; color:var(--muted); margin-bottom:4px; }
+    .bar { width:100%; background:linear-gradient(180deg, var(--accent), #3a55b5);
+           border-radius:6px 6px 0 0; min-height:2px; transition:height .3s; }
+    .bar-label { font-size:11px; color:var(--muted); margin-top:6px; }
+    .bal-breakdowns { display:flex; flex-direction:column; gap:14px; }
+    .bal-row { display:flex; justify-content:space-between; align-items:center;
+               padding:6px 0; border-bottom:1px dashed var(--border); font-size:13px;}
+    .bal-row:last-child { border-bottom:none; }
+    .bal-row .badge { font-size:11px; }
+    @media (max-width:980px){ .balance-grid{grid-template-columns:repeat(2,1fr);} .balance-split{grid-template-columns:1fr;} }
+    @media (max-width:640px){ .balance-grid{grid-template-columns:1fr;} }
   </style>
 </head>
 <body>
@@ -323,6 +383,81 @@ function fmt_dt($s) {
       <div class="card"><div class="muted">Total Revenue</div><div class="kpi" style="color:var(--ok)">€<?= number_format($totalRevenue, 2) ?></div></div>
       <div class="card"><div class="muted">Occupancy</div>
         <div class="kpi"><?= $totalSpots > 0 ? round((($reservedSpots+$occupiedSpots)/$totalSpots)*100) : 0 ?>%</div>
+      </div>
+    </div>
+
+    <div class="card balance-card">
+      <h3>💰 Balance / Income</h3>
+      <div class="balance-grid">
+        <div class="bal-tile">
+          <div class="muted">Today</div>
+          <div class="bal-amount" style="color:var(--accent)">€<?= number_format($incomeToday, 2) ?></div>
+          <div class="muted"><?= (new DateTime())->format('D, M j') ?></div>
+        </div>
+        <div class="bal-tile">
+          <div class="muted">This Week</div>
+          <div class="bal-amount" style="color:var(--ok)">€<?= number_format($incomeWeek, 2) ?></div>
+          <div class="muted">Since Mon, <?= (new DateTime('monday this week'))->format('M j') ?></div>
+        </div>
+        <div class="bal-tile">
+          <div class="muted">This Month</div>
+          <div class="bal-amount" style="color:var(--warn)">€<?= number_format($incomeMonth, 2) ?></div>
+          <div class="muted"><?= (new DateTime())->format('F Y') ?></div>
+        </div>
+        <div class="bal-tile">
+          <div class="muted">This Year</div>
+          <div class="bal-amount" style="color:var(--danger)">€<?= number_format($incomeYear, 2) ?></div>
+          <div class="muted"><?= (new DateTime())->format('Y') ?></div>
+        </div>
+      </div>
+
+      <div class="balance-split">
+        <div>
+          <h4 class="bal-sub">Last 7 days</h4>
+          <div class="bar-chart">
+            <?php foreach ($last7Days as $day => $val): ?>
+              <?php $h = (int)round(($val / $max7) * 100); if ($h < 2 && $val > 0) $h = 2; ?>
+              <div class="bar-col" title="<?= $day ?>: €<?= number_format($val, 2) ?>">
+                <div class="bar-val">€<?= number_format($val, 0) ?></div>
+                <div class="bar" style="height:<?= $h ?>%"></div>
+                <div class="bar-label"><?= (new DateTime($day))->format('D') ?></div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+        <div class="bal-breakdowns">
+          <div>
+            <h4 class="bal-sub">By payment method</h4>
+            <?php if (empty($incomeByMethod)): ?>
+              <div class="muted">No payments yet.</div>
+            <?php else: foreach ($incomeByMethod as $m): ?>
+              <div class="bal-row">
+                <span class="badge b-info"><?= htmlspecialchars($m['payment_method']) ?></span>
+                <span>€<?= number_format((float)$m['total'], 2) ?></span>
+                <span class="muted">(<?= (int)$m['cnt'] ?>)</span>
+              </div>
+            <?php endforeach; endif; ?>
+          </div>
+          <div>
+            <h4 class="bal-sub">By payment type</h4>
+            <?php if (empty($incomeByType)): ?>
+              <div class="muted">No payments yet.</div>
+            <?php else: foreach ($incomeByType as $t): ?>
+              <div class="bal-row">
+                <span class="badge b-warn"><?= htmlspecialchars($t['payment_type']) ?></span>
+                <span>€<?= number_format((float)$t['total'], 2) ?></span>
+                <span class="muted">(<?= (int)$t['cnt'] ?>)</span>
+              </div>
+            <?php endforeach; endif; ?>
+          </div>
+          <div>
+            <h4 class="bal-sub">Totals</h4>
+            <div class="bal-row"><span class="muted">Payments</span><span><?= $paymentsCount ?></span></div>
+            <div class="bal-row"><span class="muted">Average</span><span>€<?= number_format($avgPayment, 2) ?></span></div>
+            <div class="bal-row"><span class="muted">All-time</span><span>€<?= number_format($totalRevenue, 2) ?></span></div>
+          </div>
+        </div>
       </div>
     </div>
 
